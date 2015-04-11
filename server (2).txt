@@ -170,8 +170,9 @@ router.get('/tasks',function(req, res,next) {
   if (typeof req.query.skip != 'undefined') ret = ret+'.skip('+req.query.skip+')';
   if (typeof req.query.limit != 'undefined') ret = ret+'.limit('+req.query.limit+')';
   if (typeof req.query.count != 'undefined') ret = ret+'.count('+req.query.count+')';
-  ret = ret + ".exec(function(err,get){if(err) return next(err); var id = '{\"message\": '+res.statusCode+',\"data\":'+JSON.stringify(get)+'}';id = JSON.parse(id);res.json(id);});"
+  ret = ret + ".exec(function(err,get){if(err) return next(err); var id = '{\"message\": '+res.statusCode+',\"data\":'+JSON.stringify(post)+'}';id = JSON.parse(id);res.json(id);});"
   eval(ret);
+  console.log(id);
   console.log('---------------------------------------------------------------');
 });
 
