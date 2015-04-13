@@ -39,6 +39,7 @@ app.use(bodyParser.urlencoded({
 
 // All our routes will start with /api
 app.use('/api', router);
+app.use(bodyParser.json());
 
 //Default route here
 var homeRoute = router.route('/');
@@ -99,7 +100,7 @@ router.delete('/llamas/:id',function(req,res,next){
 //-----------------------------------------------------------------------------------
 router.get('/users',function(req, res,next) {
   var q = JSON.stringify(req.query);
-  console.log("q"+q);
+  //console.log("q"+q);
   var ret = 'User'
   if (typeof req.query.where === 'undefined') ret = ret+'.find({})';
   else ret = ret+'.find('+req.query.where+')';
@@ -108,17 +109,38 @@ router.get('/users',function(req, res,next) {
   if (typeof req.query.skip != 'undefined') ret = ret+'.skip('+req.query.skip+')';
   if (typeof req.query.limit != 'undefined') ret = ret+'.limit('+req.query.limit+')';
   if (typeof req.query.count != 'undefined') ret = ret+'.count('+req.query.count+')';
-  ret = ret + ".exec(function(err,get){if(err) return next(err); var id = '{\"message\": '+res.statusCode+',\"data\":'+JSON.stringify(get)+'}';id = JSON.parse(id);res.json(id);});"
+  ret = ret + ".exec(function(err,get){if(err) {var id = '{\"message\": \"Server Error\",\"data\":'+JSON.stringify(get)+'}'; id = JSON.parse(id); res.statusCode = 500; res.json(id); return next(err);} var id = '{\"message\": \"OK\",\"data\":'+JSON.stringify(get)+'}';id = JSON.parse(id);res.statusCode = 200;res.json(id);});"
+  //ret = ret + ".exec(function(err,get){if(err) return next(err); var id = '{\"message\": '+res.statusCode+',\"data\":'+JSON.stringify(get)+'}';id = JSON.parse(id);res.json(id);});"
   //ret = ret + ".exec(function(err,get){if(err) return next(err);res.json(get);});"
-  console.log(ret);
+  //console.log(ret);
   eval(ret);
-  console.log('---------------------------------------------------------------');
+  //console.log('---------------------------------------------------------------');
 });
 
 router.post('/users',function(req,res,next){
   User.create(req.body,function(err,post){
-    if(err) return next(err);
-    var id = '{"message": '+res.statusCode+',"data":'+JSON.stringify(post)+'}';
+    //console.log(post.name + ' ' + post.email);
+    if(err) {
+        if(err.code == 11000) {
+            res.status(500).json({message: 'Email already exists.', "data":[]});
+            return;
+        }
+        var id = '{"message": "server error","data":'+JSON.stringify(post)+'}';
+        id = JSON.parse(id);
+        res.statusCode = 500;
+        res.json(id);
+        return next(err);
+    }
+    if(!post.name){
+      res.status(500).json({message: 'No Name Field',"data":[]});
+      return
+    }
+    if(!post.email){
+      res.status(500).json({message: 'No Email Field',"data":[]});
+      return
+    }
+    var id = '{"message": "User Added","data":'+JSON.stringify(post)+'}';
+    res.statusCode = 200;
     id = JSON.parse(id);
     res.json(id);
   });
@@ -131,9 +153,29 @@ router.options('/users',function(req,res,next){
 
 router.get('/users/:id',function(req,res,next){
   User.findOne({_id:req.params.id},function(err,get){
-    if(err) return next(err);
-    var id = '{"message": '+res.statusCode+','+
-          '"data":'+JSON.stringify(get)+'}';
+    if(err) {
+        if (err.path == '_id') {
+            var id = '{"message": "User Does Not Exist","data":[]}';
+            id = JSON.parse(id);
+            res.statusCode = 404;
+            res.json(id);
+            return next(err);
+        }
+        var id = '{"message": "server error","data":'+JSON.stringify(get)+'}';
+        id = JSON.parse(id);
+        res.statusCode = 500;
+        res.json(id);
+        return next(err);
+    }
+    if(JSON.stringify(get) == 'null') {
+        var id = '{"message": "User Does Not Exist","data":[]}';
+        id = JSON.parse(id);
+        res.statusCode = 404;
+        res.json(id);
+        return;
+    }
+    var id = '{"message": "User Found","data":'+JSON.stringify(get)+'}';
+    res.statusCode = 200;
     id = JSON.parse(id);
     res.json(id);
   });
@@ -141,9 +183,37 @@ router.get('/users/:id',function(req,res,next){
 
 router.put('/users/:id',function(req,res,next){
   User.findOneAndUpdate({_id:req.params.id},req.body,function(err,put){
-    if(err) return next(err);
-    var id = '{"message": '+res.statusCode+','+
-          '"data":'+JSON.stringify(put)+'}';
+    if(err) {
+        if (err.path == '_id') {
+            var id = '{"message": "User Does Not Exist","data":[]}';
+            id = JSON.parse(id);
+            res.statusCode = 404;
+            res.json(id);
+            return next(err);
+        }
+        var id = '{"message": "server error","data":'+JSON.stringify(put)+'}';
+        id = JSON.parse(id);
+        res.statusCode = 500;
+        res.json(id);
+        return next(err);
+    }
+    if(JSON.stringify(put) == 'null') {
+        var id = '{"message": "User Does Not Exist","data":[]}';
+        id = JSON.parse(id);
+        res.statusCode = 404;
+        res.json(id);
+        return;
+    }
+    if(!put.name){
+      res.status(500).json({message: 'No Name Field',"data":[]});
+      return
+    }
+    if(!put.email){
+      res.status(500).json({message: 'No Email Field',"data":[]});
+      return
+    }
+    var id = '{"message": "User Updated","data":'+JSON.stringify(put)+'}';
+    res.statusCode = 200;
     id = JSON.parse(id);
     res.json(id);
   });
@@ -151,9 +221,29 @@ router.put('/users/:id',function(req,res,next){
 
 router.delete('/users/:id',function(req,res,next){
   User.findOneAndRemove({_id:req.params.id},req.body,function(err,del){
-    if(err) return next(err);
-    var id = '{"message": '+res.statusCode+','+
-          '"data":'+JSON.stringify(del)+'}';
+    if(err) {
+        if (err.path == '_id') {
+            var id = '{"message": "User Does Not Existd","data":[]}';
+            id = JSON.parse(id);
+            res.statusCode = 404;
+            res.json(id);
+            return next(err);
+        }
+        var id = '{"message": "server error","data":'+JSON.stringify(del)+'}';
+        id = JSON.parse(id);
+        res.statusCode = 500;
+        res.json(id);
+        return next(err);
+    }
+    if(JSON.stringify(del) == 'null') {
+        var id = '{"message": "User Does Not Exist","data":[]}';
+        id = JSON.parse(id);
+        res.statusCode = 404;
+        res.json(id);
+        return;
+    }
+    var id = '{"message": "User Deleted","data":'+JSON.stringify(del)+'}';
+    res.statusCode = 200;
     id = JSON.parse(id);
     res.json(id);
   });
@@ -161,7 +251,7 @@ router.delete('/users/:id',function(req,res,next){
 //-----------------------------------------------------------------------------------
 router.get('/tasks',function(req, res,next) {
   var q = JSON.stringify(req.query);
-  console.log("q"+q);
+  //console.log("q"+q);
   var ret = 'Task'
   if (typeof req.query.where === 'undefined') ret = ret+'.find({})';
   else ret = ret+'.find('+req.query.where+')';
@@ -170,15 +260,32 @@ router.get('/tasks',function(req, res,next) {
   if (typeof req.query.skip != 'undefined') ret = ret+'.skip('+req.query.skip+')';
   if (typeof req.query.limit != 'undefined') ret = ret+'.limit('+req.query.limit+')';
   if (typeof req.query.count != 'undefined') ret = ret+'.count('+req.query.count+')';
-  ret = ret + ".exec(function(err,get){if(err) return next(err); var id = '{\"message\": '+res.statusCode+',\"data\":'+JSON.stringify(get)+'}';id = JSON.parse(id);res.json(id);});"
+  ret = ret + ".exec(function(err,get){if(err) {var id = '{\"message\": \"Server Error\",\"data\":'+JSON.stringify(get)+'}'; id = JSON.parse(id); res.statusCode = 500; res.json(id); return next(err);} var id = '{\"message\": \"OK\",\"data\":'+JSON.stringify(get)+'}';id = JSON.parse(id);res.statusCode = 200;res.json(id);});"
+  //ret = ret + ".exec(function(err,get){if(err) return next(err); var id = '{\"message\": '+res.statusCode+',\"data\":'+JSON.stringify(get)+'}';id = JSON.parse(id);res.json(id);});"
   eval(ret);
-  console.log('---------------------------------------------------------------');
+  //console.log('---------------------------------------------------------------');
 });
 
 router.post('/tasks',function(req,res,next){
   Task.create(req.body,function(err,post){
-    if(err) return next(err);
-    var id = '{"message": '+res.statusCode+',"data":'+JSON.stringify(post)+'}';
+    if(err) {
+        var id = '{"message": "server error","data":'+JSON.stringify(post)+'}';
+        id = JSON.parse(id);
+        res.statusCode = 500;
+        res.json(id);
+        return next(err);
+    }
+    if(!post.name){
+      res.status(500).json({message: 'No Name Field',"data":[]});
+      console.log('no name');
+      return
+    }
+    if(!post.deadline){
+      res.status(500).json({message: 'No Deadline Field',"data":[]});
+      return
+    }
+    var id = '{"message": "Task Added","data":'+JSON.stringify(post)+'}';
+    res.statusCode = 200;
     id = JSON.parse(id);
     res.json(id);
     });
@@ -191,22 +298,100 @@ router.options('/tasks',function(req,res,next){
 
 router.get('/tasks/:id',function(req,res,next){
   Task.findOne({_id:req.params.id},function(err,get){
-    if(err) return next(err);
-    res.json(get);
+    if(err) {
+        if (err.path == '_id') {
+            var id = '{"message": "Task Does Not Exist","data":[]}';
+            id = JSON.parse(id);
+            res.statusCode = 404;
+            res.json(id);
+            return next(err);
+        }
+        var id = '{"message": "server error","data":'+JSON.stringify(get)+'}';
+        id = JSON.parse(id);
+        res.statusCode = 500;
+        res.json(id);
+        return next(err);
+    }
+    if(JSON.stringify(get) == 'null') {
+        var id = '{"message": "Task Does Not Exist","data":[]}';
+        id = JSON.parse(id);
+        res.statusCode = 404;
+        res.json(id);
+        return;
+    }
+    var id = '{"message": "Task Found","data":'+JSON.stringify(get)+'}';
+    res.statusCode = 200;
+    id = JSON.parse(id);
+    res.json(id);
   });
 });
 
 router.put('/tasks/:id',function(req,res,next){
   Task.findOneAndUpdate({_id:req.params.id},req.body,function(err,put){
-    if(err) return next(err);
-    res.json(put);
+    console.log(put);
+    if(err) {
+        if (err.path == '_id') {
+            var id = '{"message": "Task Does Not Exist","data":[]}';
+            id = JSON.parse(id);
+            res.statusCode = 404;
+            res.json(id);
+            return next(err);
+        }
+        var id = '{"message": "server error","data":'+JSON.stringify(put)+'}';
+        id = JSON.parse(id);
+        res.statusCode = 500;
+        res.json(id);
+        return next(err);
+    }
+    if(JSON.stringify(put) == 'null') {
+        var id = '{"message": "Task Does Not Exist","data":[]}';
+        id = JSON.parse(id);
+        res.statusCode = 404;
+        res.json(id);
+        return;
+    }
+    if(!put.name){
+      res.status(500).json({message: 'No Name Field',"data":[]});
+      return
+    }
+    if(!put.deadline){
+      res.status(500).json({message: 'No Deadline Field',"data":[]});
+      return
+    }
+    var id = '{"message": "Task Updated","data":'+JSON.stringify(put)+'}';
+    res.statusCode = 200;
+    id = JSON.parse(id);
+    res.json(id);
   });
 });
 
 router.delete('/tasks/:id',function(req,res,next){
   Task.findOneAndRemove({_id:req.params.id},req.body,function(err,del){
-    if(err) return next(err);
-    res.json(del);
+    if(err) {
+        if (err.path == '_id') {
+            var id = '{"message": "Task Does Not Exist","data":[]}';
+            id = JSON.parse(id);
+            res.statusCode = 404;
+            res.json(id);
+            return next(err);
+        }
+        var id = '{"message": "server error","data":'+JSON.stringify(del)+'}';
+        id = JSON.parse(id);
+        res.statusCode = 500;
+        res.json(id);
+        return next(err);
+    }
+    if(JSON.stringify(del) == 'null') {
+        var id = '{"message": "Task Does Not Exist","data":[]}';
+        id = JSON.parse(id);
+        res.statusCode = 404;
+        res.json(id);
+        return;
+    }
+    var id = '{"message": "Task Deleted","data":'+JSON.stringify(del)+'}';
+    res.statusCode = 200;
+    id = JSON.parse(id);
+    res.json(id);
   });
 });
 // Start the server

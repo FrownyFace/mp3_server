@@ -129,7 +129,6 @@ def main(argv):
             response = conn.getresponse()
             data = response.read()
             d = json.loads(data)
-            print(d['data'][0])
             # Store all the user properties
             assignedUserName = str(d['data'][0]['name'])
             assignedUserEmail = str(d['data'][0]['email'])
