@@ -213,7 +213,7 @@ router.put('/users/:id',function(req,res,next){
       return
     }
     var id = '{"message": "User Updated","data":'+JSON.stringify(put)+'}';
-    res.statusCode = 200;
+    res.statusCode = 201;
     id = JSON.parse(id);
     res.json(id);
   });
@@ -285,7 +285,7 @@ router.post('/tasks',function(req,res,next){
       return
     }
     var id = '{"message": "Task Added","data":'+JSON.stringify(post)+'}';
-    res.statusCode = 200;
+    res.statusCode = 201;
     id = JSON.parse(id);
     res.json(id);
     });
